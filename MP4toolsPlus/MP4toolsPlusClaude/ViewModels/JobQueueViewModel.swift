@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class JobQueueViewModel: ObservableObject {
@@ -56,7 +57,7 @@ final class JobQueueViewModel: ObservableObject {
         job.status = .running(progress: 0)
         runningTask = Task {
             do {
-                try await engine.execute(
+                let finalURL = try await engine.execute(
                     source: job.source,
                     operation: job.operation,
                     selectedTracks: selectedTracks,
@@ -69,7 +70,8 @@ final class JobQueueViewModel: ObservableObject {
                         }
                     }
                 }
-                job.status = .completed(outputURL: job.outputURL)
+                // Reflect the path actually written (may carry a -2/-3 suffix).
+                job.status = .completed(outputURL: finalURL)
             } catch is CancellationError {
                 job.status = .cancelled
             } catch {

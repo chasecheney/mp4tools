@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     var body: some View {

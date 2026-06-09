@@ -13,46 +13,66 @@ actor FFmpegService {
 
     /// Run a job. `progress` is called on a background context; callers should
     /// hop to the main actor before touching UI state.
+    ///
+    /// Returns the URL actually written. Because the destination is resolved
+    /// here (not at enqueue time) via `OutputNaming.uniqueURL`, queued jobs
+    /// targeting the same name receive sequential suffixes (`-2`, `-3`, …)
+    /// instead of overwriting one another.
+    @discardableResult
     func execute(source: MediaFile,
                  operation: Operation,
                  selectedTracks: [MediaTrack],
                  output: URL,
                  externalSubtitle: URL? = nil,
-                 progress: @Sendable @escaping (Double) -> Void) async throws {
+                 progress: @Sendable @escaping (Double) -> Void) async throws -> URL {
 
         let ffmpeg = try BinaryLocator.ffmpeg
         let totalDuration = source.durationSeconds ?? 0
 
         switch operation {
         case .convert(let preset):
+            let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.convert(
                 input: source, tracks: selectedTracks, preset: preset,
-                output: output, externalSubtitle: externalSubtitle)
+                output: dest, externalSubtitle: externalSubtitle)
             try await runReporting(ffmpeg, args, totalDuration, progress)
+            return dest
 
         case .splitBySize(let maxBytes):
-            let pattern = output.deletingPathExtension().path + "_%03d.mp4"
+            let base = OutputNaming.uniqueSegmentBase(output)
+            let stem = base.deletingPathExtension()        // …/Movie-part
+            let pattern = stem.path + "_%03d.mp4"
             let args = FFmpegCommandBuilder.splitBySize(
                 input: source.url, maxBytes: maxBytes, outputPattern: pattern)
             try await runReporting(ffmpeg, args, totalDuration, progress)
+            // Return the first segment so the UI can reveal it in Finder.
+            return base.deletingLastPathComponent()
+                .appendingPathComponent("\(stem.lastPathComponent)_000.mp4")
 
         case .splitByTime(let start, let end):
+            let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.splitByTime(
-                input: source.url, start: start, end: end, output: output)
+                input: source.url, start: start, end: end, output: dest)
             try await runReporting(ffmpeg, args, end - start, progress)
+            return dest
 
         case .join(let additional):
+            let dest = OutputNaming.uniqueURL(output)
             let list = try writeConcatList(first: source.url, rest: additional)
             defer { try? FileManager.default.removeItem(at: list) }
-            let args = FFmpegCommandBuilder.join(listFile: list, output: output)
+            let args = FFmpegCommandBuilder.join(listFile: list, output: dest)
             try await runReporting(ffmpeg, args, totalDuration, progress)
+            return dest
 
         case .extractTracks(let trackIDs):
             let toExtract = selectedTracks.filter { trackIDs.contains($0.id) }
+            var firstDest: URL?
             for (i, track) in toExtract.enumerated() {
                 let ext = Self.elementaryExtension(for: track)
-                let dest = output.deletingPathExtension()
+                let desired = output.deletingPathExtension()
                     .appendingPathExtension("track\(track.streamIndex).\(ext)")
+                let dest = OutputNaming.uniqueURL(desired)
+                if firstDest == nil { firstDest = dest }
                 let args = FFmpegCommandBuilder.extract(
                     input: source.url, track: track, output: dest)
                 try await runReporting(ffmpeg, args, totalDuration) { p in
@@ -60,11 +80,14 @@ actor FFmpegService {
                     progress((Double(i) + p) / Double(max(toExtract.count, 1)))
                 }
             }
+            return firstDest ?? output
 
         case .adjustPAR(let num, let den):
+            let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.adjustPAR(
-                input: source.url, numerator: num, denominator: den, output: output)
+                input: source.url, numerator: num, denominator: den, output: dest)
             try await runReporting(ffmpeg, args, totalDuration, progress)
+            return dest
         }
     }
 

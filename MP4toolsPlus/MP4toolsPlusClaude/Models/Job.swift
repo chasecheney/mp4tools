@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 /// The kind of operation a job performs.
 enum Operation: Codable, Hashable {

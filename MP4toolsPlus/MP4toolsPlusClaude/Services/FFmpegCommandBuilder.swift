@@ -68,14 +68,20 @@ enum FFmpegCommandBuilder {
             args += ["-c:v", preset.videoCodec, "-crf", "\(preset.crf)"]
         }
 
-        // ---- Audio codec / surround handling ----
-        if let codec = preset.audioTarget.ffmpegCodec {
-            args += ["-c:a", codec]
-            if let ch = preset.audioTarget.channels { args += ["-ac", "\(ch)"] }
-            if preset.audioTarget == .ac3_51 { args += ["-b:a", "640k"] }
-            if preset.audioTarget == .aac_51 { args += ["-b:a", "384k"] }
-        } else {
-            args += ["-c:a", "copy"]
+        // ---- Audio codec / surround handling (per track) ----
+        // Each selected audio stream carries its own conversion choice.
+        // Output stream specifiers (`:a:0`, `:a:1`, …) follow the order the
+        // audio streams were mapped above.
+        for (outIndex, t) in selectedAudio.enumerated() {
+            let target = t.audioConversion
+            if let codec = target.ffmpegCodec {
+                args += ["-c:a:\(outIndex)", codec]
+                if let ch = target.channels { args += ["-ac:a:\(outIndex)", "\(ch)"] }
+                if target == .ac3_51 { args += ["-b:a:\(outIndex)", "640k"] }
+                if target == .aac_51 { args += ["-b:a:\(outIndex)", "384k"] }
+            } else {
+                args += ["-c:a:\(outIndex)", "copy"]
+            }
         }
 
         // ---- Subtitle codec (soft mux into MP4 needs mov_text) ----

@@ -28,6 +28,58 @@ enum ProcessRunnerError: LocalizedError {
     }
 }
 
+/// Thread-safe accumulator for a process's piped output.
+///
+/// `FileHandle.readabilityHandler` closures are invoked on arbitrary
+/// background threads, so all mutable state is guarded by a lock. Marked
+/// `@unchecked Sendable` because that locking — not the compiler — provides
+/// the safety guarantee.
+private final class OutputAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stdoutData = Data()
+    private var stderrBuffer = Data()
+    private var stderrText = ""
+    private let onStderrLine: (@Sendable (String) -> Void)?
+
+    init(onStderrLine: (@Sendable (String) -> Void)?) {
+        self.onStderrLine = onStderrLine
+    }
+
+    func appendStdout(_ chunk: Data) {
+        lock.lock(); defer { lock.unlock() }
+        stdoutData.append(chunk)
+    }
+
+    func appendStderr(_ chunk: Data) {
+        // Emit each completed line outside the lock to avoid re-entrancy.
+        var linesToEmit: [String] = []
+        lock.lock()
+        stderrBuffer.append(chunk)
+        stderrText += String(decoding: chunk, as: UTF8.self)
+        // ffmpeg ends progress lines with either \n or \r.
+        while let range = stderrBuffer.firstRange(of: Data([0x0a]))
+            ?? stderrBuffer.firstRange(of: Data([0x0d])) {
+            let lineData = stderrBuffer.subdata(in: stderrBuffer.startIndex..<range.lowerBound)
+            stderrBuffer.removeSubrange(stderrBuffer.startIndex..<range.upperBound)
+            if let line = String(data: lineData, encoding: .utf8) {
+                linesToEmit.append(line)
+            }
+        }
+        lock.unlock()
+        for line in linesToEmit { onStderrLine?(line) }
+    }
+
+    var stdoutString: String {
+        lock.lock(); defer { lock.unlock() }
+        return String(decoding: stdoutData, as: UTF8.self)
+    }
+
+    var stderrString: String {
+        lock.lock(); defer { lock.unlock() }
+        return stderrText
+    }
+}
+
 /// Runs external command-line tools off the main thread.
 actor ProcessRunner {
 
@@ -46,29 +98,17 @@ actor ProcessRunner {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
-        // Accumulators guarded by the actor's serial executor.
-        var stdoutData = Data()
-        var stderrBuffer = Data()
-        var stderrText = ""
+        let accumulator = OutputAccumulator(onStderrLine: onStderrLine)
 
         stderrPipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = handle.availableData
             guard !chunk.isEmpty else { return }
-            stderrBuffer.append(chunk)
-            stderrText += String(decoding: chunk, as: UTF8.self)
-
-            // Emit complete lines (ffmpeg uses both \n and \r for progress).
-            while let range = stderrBuffer.firstRange(of: Data([0x0a]))
-                ?? stderrBuffer.firstRange(of: Data([0x0d])) {
-                let lineData = stderrBuffer.subdata(in: stderrBuffer.startIndex..<range.lowerBound)
-                stderrBuffer.removeSubrange(stderrBuffer.startIndex..<range.upperBound)
-                if let line = String(data: lineData, encoding: .utf8) {
-                    onStderrLine?(line)
-                }
-            }
+            accumulator.appendStderr(chunk)
         }
         stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-            stdoutData.append(handle.availableData)
+            let chunk = handle.availableData
+            guard !chunk.isEmpty else { return }
+            accumulator.appendStdout(chunk)
         }
 
         do {
@@ -91,9 +131,8 @@ actor ProcessRunner {
 
         if Task.isCancelled { throw ProcessRunnerError.cancelled }
 
-        let stdout = String(decoding: stdoutData, as: UTF8.self)
         return ProcessResult(exitCode: process.terminationStatus,
-                             standardOutput: stdout,
-                             standardError: stderrText)
+                             standardOutput: accumulator.stdoutString,
+                             standardError: accumulator.stderrString)
     }
 }

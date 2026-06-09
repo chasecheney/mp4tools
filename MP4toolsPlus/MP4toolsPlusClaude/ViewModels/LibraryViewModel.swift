@@ -8,6 +8,8 @@
 
 import Foundation
 import SwiftUI
+import AppKit
+import Combine
 import UniformTypeIdentifiers
 
 @MainActor
@@ -78,6 +80,16 @@ final class LibraryViewModel: ObservableObject {
         files[fIdx].tracks[tIdx].isSelected = selected
     }
 
+    /// Set the per-track audio conversion target for one audio track.
+    func setAudioConversion(_ target: AudioTarget,
+                            for trackID: MediaTrack.ID,
+                            in fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }),
+              let tIdx = files[fIdx].tracks.firstIndex(where: { $0.id == trackID })
+        else { return }
+        files[fIdx].tracks[tIdx].audioConversion = target
+    }
+
     /// Apply a preset's preferred-language rule to auto-select audio/subtitle
     /// tracks for the currently selected file.
     func applyAutoSelection(using preset: Preset, to fileID: MediaFile.ID) {
@@ -90,6 +102,8 @@ final class LibraryViewModel: ObservableObject {
             case .audio:
                 let lang = files[fIdx].tracks[i].language ?? ""
                 files[fIdx].tracks[i].isSelected = prefs.isEmpty || prefs.contains(lang)
+                // Seed the per-track conversion from the preset's audio target.
+                files[fIdx].tracks[i].audioConversion = preset.audioTarget
             case .subtitle:
                 let lang = files[fIdx].tracks[i].language ?? ""
                 files[fIdx].tracks[i].isSelected =

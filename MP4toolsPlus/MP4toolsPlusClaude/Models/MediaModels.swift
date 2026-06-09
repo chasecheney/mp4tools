@@ -48,6 +48,10 @@ struct MediaTrack: Identifiable, Codable, Hashable {
     /// Whether the user has selected this track for processing.
     var isSelected: Bool
 
+    /// Per-track audio conversion choice. Only meaningful for audio tracks;
+    /// `.copy` leaves the stream untouched (no re-encode).
+    var audioConversion: AudioTarget
+
     init(id: UUID = UUID(),
          streamIndex: Int,
          kind: TrackKind,
@@ -60,7 +64,8 @@ struct MediaTrack: Identifiable, Codable, Hashable {
          channels: Int? = nil,
          channelLayout: String? = nil,
          sampleRate: Int? = nil,
-         isSelected: Bool = true) {
+         isSelected: Bool = true,
+         audioConversion: AudioTarget = .copy) {
         self.id = id
         self.streamIndex = streamIndex
         self.kind = kind
@@ -74,6 +79,7 @@ struct MediaTrack: Identifiable, Codable, Hashable {
         self.channelLayout = channelLayout
         self.sampleRate = sampleRate
         self.isSelected = isSelected
+        self.audioConversion = audioConversion
     }
 
     /// Human-friendly one-line summary shown in the UI.

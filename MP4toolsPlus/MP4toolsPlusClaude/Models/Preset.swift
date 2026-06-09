@@ -28,9 +28,9 @@ enum AudioTarget: String, Codable, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .copy:       return "Copy original"
-        case .ac3_51:     return "5.1 AC-3"
-        case .aac_51:     return "5.1 AAC"
-        case .aac_stereo: return "Stereo AAC"
+        case .ac3_51:     return "AC3 (5.1)"
+        case .aac_51:     return "AAC (5.1)"
+        case .aac_stereo: return "AAC (2 channel)"
         }
     }
 
