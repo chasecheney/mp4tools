@@ -28,6 +28,10 @@ actor FFmpegService {
 
         let ffmpeg = try BinaryLocator.ffmpeg
         let totalDuration = source.durationSeconds ?? 0
+        // Whether the source video is HEVC, so copy-based ops can re-tag it
+        // hvc1 for QuickTime/Preview compatibility.
+        let sourceIsHEVC = FFmpegCommandBuilder.isHEVC(
+            source.tracks(of: .video).first?.codec ?? "")
 
         switch operation {
         case .convert(let preset):
@@ -43,7 +47,8 @@ actor FFmpegService {
             let stem = base.deletingPathExtension()        // …/Movie-part
             let pattern = stem.path + "_%03d.mp4"
             let args = FFmpegCommandBuilder.splitBySize(
-                input: source.url, maxBytes: maxBytes, outputPattern: pattern)
+                input: source.url, maxBytes: maxBytes, outputPattern: pattern,
+                hevc: sourceIsHEVC)
             try await runReporting(ffmpeg, args, totalDuration, progress)
             // Return the first segment so the UI can reveal it in Finder.
             return base.deletingLastPathComponent()
@@ -52,7 +57,8 @@ actor FFmpegService {
         case .splitByTime(let start, let end):
             let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.splitByTime(
-                input: source.url, start: start, end: end, output: dest)
+                input: source.url, start: start, end: end, output: dest,
+                hevc: sourceIsHEVC)
             try await runReporting(ffmpeg, args, end - start, progress)
             return dest
 
@@ -60,7 +66,8 @@ actor FFmpegService {
             let dest = OutputNaming.uniqueURL(output)
             let list = try writeConcatList(first: source.url, rest: additional)
             defer { try? FileManager.default.removeItem(at: list) }
-            let args = FFmpegCommandBuilder.join(listFile: list, output: dest)
+            let args = FFmpegCommandBuilder.join(listFile: list, output: dest,
+                                                 hevc: sourceIsHEVC)
             try await runReporting(ffmpeg, args, totalDuration, progress)
             return dest
 
@@ -85,7 +92,8 @@ actor FFmpegService {
         case .adjustPAR(let num, let den):
             let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.adjustPAR(
-                input: source.url, numerator: num, denominator: den, output: dest)
+                input: source.url, numerator: num, denominator: den, output: dest,
+                hevc: sourceIsHEVC)
             try await runReporting(ffmpeg, args, totalDuration, progress)
             return dest
         }
