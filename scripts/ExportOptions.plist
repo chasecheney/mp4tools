@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Developer ID = direct distribution outside the App Store. -->
+    <key>method</key>
+    <string>developer-id</string>
+
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <!-- Replace with your 10-character Apple Developer Team ID. -->
+    <key>teamID</key>
+    <string>YOURTEAMID</string>
+
+    <!-- Notarization is done separately via notarytool in the build script. -->
+    <key>destination</key>
+    <string>export</string>
+</dict>
+</plist>

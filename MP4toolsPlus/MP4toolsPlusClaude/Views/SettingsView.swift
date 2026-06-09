@@ -25,6 +25,12 @@ struct GeneralSettingsView: View {
     @AppStorage("mp4tools.outputFolder") private var outputFolder = ""
     @AppStorage("mp4tools.openOnComplete") private var openOnComplete = false
 
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(v) (\(b))"
+    }
+
     var body: some View {
         Form {
             Toggle("Reveal output in Finder when a job completes", isOn: $openOnComplete)
@@ -34,6 +40,17 @@ struct GeneralSettingsView: View {
                         .lineLimit(1).truncationMode(.middle)
                         .foregroundStyle(.secondary)
                     Button("Choose…") { chooseFolder() }
+                }
+            }
+
+            Section("About") {
+                LabeledContent("Version", value: appVersion)
+                // Required attribution when distributing with FFmpeg (LGPL/GPL).
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("This software uses libraries from the FFmpeg project under the LGPLv2.1/GPLv2.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Link("ffmpeg.org", destination: URL(string: "https://ffmpeg.org")!)
+                        .font(.caption)
                 }
             }
         }
