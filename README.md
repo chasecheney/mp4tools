@@ -2,7 +2,7 @@
 
 A native macOS app (Swift + SwiftUI) for fast, mostly-lossless video processing built on **ffmpeg** / **ffprobe**. Drop a video in, pick what you want, and let it run — most jobs stream-copy tracks so they finish in minutes with no quality loss.
 
-## Features
+## Features (copied from EmmGunn Software MP4tools)
 
 - **Drag-and-drop intake** for MKV, MP4, WEBM, OGM, AVI and more, probed with ffprobe.
 - **Convert to MP4** — copy video/audio tracks (no re-encode) whenever possible.
