@@ -17,7 +17,7 @@ struct SettingsView: View {
             GeneralSettingsView()
                 .tabItem { Label("General", systemImage: "gearshape") }
         }
-        .frame(width: 560, height: 420)
+        .frame(width: 720, height: 560)
     }
 }
 
@@ -61,17 +61,20 @@ struct PresetEditorView: View {
                     Text(preset.name).tag(preset.id)
                 }
             }
-            .frame(minWidth: 180)
+            .frame(minWidth: 160, idealWidth: 200, maxWidth: 260)
 
-            if let id = selection,
-               let preset = store.presets.first(where: { $0.id == id }) {
-                PresetForm(preset: preset)
-                    .id(preset.id)
-            } else {
-                Text("Select a preset")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Group {
+                if let id = selection,
+                   let preset = store.presets.first(where: { $0.id == id }) {
+                    PresetForm(preset: preset)
+                        .id(preset.id)
+                } else {
+                    Text("Select a preset")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+            .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
             ToolbarItemGroup {
@@ -119,14 +122,20 @@ struct PresetForm: View {
                         .help("Use Apple VideoToolbox (GPU/ASIC) — much faster, slightly larger files")
 
                     LabeledContent("Bitrate (kbps)") {
-                        TextField("Auto", value: $draft.videoBitrate, format: .number)
-                            .frame(width: 90).multilineTextAlignment(.trailing)
+                        TextField("", value: $draft.videoBitrate, format: .number)
+                            .labelsHidden()
+                            .frame(width: 100)
+                            .multilineTextAlignment(.trailing)
+                            .textFieldStyle(.roundedBorder)
                     }
                     LabeledContent("Width (px)") {
-                        TextField("Original", value: $draft.videoWidth, format: .number)
-                            .frame(width: 90).multilineTextAlignment(.trailing)
+                        TextField("", value: $draft.videoWidth, format: .number)
+                            .labelsHidden()
+                            .frame(width: 100)
+                            .multilineTextAlignment(.trailing)
+                            .textFieldStyle(.roundedBorder)
                     }
-                    Text("0 = keep source. Height is derived to preserve aspect ratio.")
+                    Text("Set either to 0 to keep the source (automatic bitrate, original width). Height is derived to preserve aspect ratio.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

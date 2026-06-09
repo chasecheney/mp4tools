@@ -148,11 +148,19 @@ enum FFmpegCommandBuilder {
          "-c", "copy", output.path]
     }
 
-    /// Adjust the pixel/sample aspect ratio without re-encoding pixels.
-    static func adjustPAR(input: URL, numerator: Int, denominator: Int, output: URL) -> [String] {
+    /// Adjust the display aspect ratio without re-encoding pixels.
+    ///
+    /// We set the container-level aspect ratio (`-aspect`) rather than rewriting
+    /// the bitstream SAR with a per-codec metadata filter. The MP4 muxer derives
+    /// its `pasp`/track aspect from the demuxer's stream metadata and overrides
+    /// any bitstream-filter SAR change, so `h264_metadata`/`hevc_metadata` have
+    /// no visible effect here. `-aspect` is codec-agnostic, works with stream
+    /// copy, and is honored by players (verified: 16:9 → 4:3).
+    static func adjustPAR(input: URL, numerator: Int, denominator: Int,
+                          output: URL) -> [String] {
         ["-y", "-i", input.path,
          "-c", "copy",
-         "-bsf:v", "h264_metadata=sample_aspect_ratio=\(numerator)/\(denominator)",
+         "-aspect", "\(numerator):\(denominator)",
          output.path]
     }
 
