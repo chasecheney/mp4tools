@@ -157,24 +157,25 @@ struct Preset: Identifiable, Codable, Hashable {
         return collapsed.isEmpty ? "preset" : collapsed
     }
 
-    /// Factory defaults shipped with the app for common hardware.
+    /// Factory defaults shipped with the app.
     static let builtIns: [Preset] = [
-        Preset(name: "Remux to MP4",
+        Preset(name: "Remux",
                videoTarget: .passthru,
                audioTargetStereo: .copy, audioTargetSurround: .copy,
                subtitleMode: .mux, isOneStep: true),
-        Preset(name: "Apple TV 4K",
-               videoTarget: .passthru,
-               audioTargetStereo: .aac_stereo, audioTargetSurround: .ac3_51,
+        Preset(name: "H.265 720p",
+               videoTarget: .h265, useHardwareAcceleration: true,
+               videoBitrate: 3000, videoWidth: 1280,
+               audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_51,
                subtitleMode: .mux, isOneStep: true),
-        Preset(name: "iPhone",
-               videoTarget: .h264, useHardwareAcceleration: true,
-               videoBitrate: 4000, videoWidth: 1280,
-               audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_stereo,
-               subtitleMode: .burn, isOneStep: true),
         Preset(name: "H.265 1080p",
                videoTarget: .h265, useHardwareAcceleration: true,
                videoBitrate: 6000, videoWidth: 1920,
+               audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_51,
+               subtitleMode: .mux, isOneStep: true),
+        Preset(name: "H.265 4K",
+               videoTarget: .h265, useHardwareAcceleration: true,
+               videoBitrate: 18000, videoWidth: 3840,
                audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_51,
                subtitleMode: .mux, isOneStep: true)
     ]

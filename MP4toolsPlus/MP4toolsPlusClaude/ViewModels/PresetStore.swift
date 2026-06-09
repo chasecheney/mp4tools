@@ -13,7 +13,8 @@ import Combine
 final class PresetStore: ObservableObject {
     @Published private(set) var presets: [Preset] = []
 
-    private let defaultsKey = "mp4tools.presets.v1"
+    // Bump this version to re-seed the built-in presets (discards saved ones).
+    private let defaultsKey = "mp4tools.presets.v2"
 
     init() { load() }
 
