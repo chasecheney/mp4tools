@@ -28,15 +28,32 @@ struct BinaryLocator {
     ]
 
     static func url(for tool: String) throws -> URL {
-        // 1. Bundled binary (preferred — self-contained app).
-        if let bundled = Bundle.main.url(forResource: tool, withExtension: nil),
-           FileManager.default.isExecutableFile(atPath: bundled.path) {
-            return bundled
+        let fm = FileManager.default
+
+        // 1. Bundled binary (preferred — self-contained app). Check the common
+        //    locations a helper executable may live in inside the .app bundle.
+        var bundledCandidates: [URL] = []
+        if let res = Bundle.main.resourceURL {
+            bundledCandidates.append(res.appendingPathComponent(tool))
         }
-        // 2. Known on-disk install locations.
+        if let exeDir = Bundle.main.executableURL?.deletingLastPathComponent() {
+            bundledCandidates.append(exeDir.appendingPathComponent(tool)) // Contents/MacOS
+        }
+        if let helpers = Bundle.main.sharedSupportURL?
+            .deletingLastPathComponent().appendingPathComponent("Helpers") {
+            bundledCandidates.append(helpers.appendingPathComponent(tool)) // Contents/Helpers
+        }
+        if let viaResource = Bundle.main.url(forResource: tool, withExtension: nil) {
+            bundledCandidates.append(viaResource)
+        }
+        for candidate in bundledCandidates where fm.isExecutableFile(atPath: candidate.path) {
+            return candidate
+        }
+
+        // 2. Known on-disk install locations (developer / Homebrew fallback).
         for dir in searchPaths {
             let candidate = URL(fileURLWithPath: dir).appendingPathComponent(tool)
-            if FileManager.default.isExecutableFile(atPath: candidate.path) {
+            if fm.isExecutableFile(atPath: candidate.path) {
                 return candidate
             }
         }
