@@ -102,24 +102,44 @@ struct PresetForm: View {
     var body: some View {
         Form {
             TextField("Name", text: $draft.name)
+            if !draft.name.isEmpty {
+                LabeledContent("Output suffix") {
+                    Text("…-\(draft.fileSuffix).mp4")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Section("Video") {
-                Picker("Mode", selection: $draft.videoMode) {
-                    ForEach(StreamMode.allCases) { Text($0.label).tag($0) }
+                Picker("Encoding", selection: $draft.videoTarget) {
+                    ForEach(VideoTarget.allCases) { Text($0.label).tag($0) }
                 }
-                if draft.videoMode == .reencode {
-                    Picker("Codec", selection: $draft.videoCodec) {
-                        Text("H.264 (libx264)").tag("libx264")
-                        Text("H.265 (libx265)").tag("libx265")
+                if draft.videoTarget != .passthru {
+                    Toggle("Hardware accelerated encoding", isOn: $draft.useHardwareAcceleration)
+                        .help("Use Apple VideoToolbox (GPU/ASIC) — much faster, slightly larger files")
+
+                    LabeledContent("Bitrate (kbps)") {
+                        TextField("Auto", value: $draft.videoBitrate, format: .number)
+                            .frame(width: 90).multilineTextAlignment(.trailing)
                     }
-                    Stepper("Quality (CRF): \(draft.crf)", value: $draft.crf, in: 14...30)
+                    LabeledContent("Width (px)") {
+                        TextField("Original", value: $draft.videoWidth, format: .number)
+                            .frame(width: 90).multilineTextAlignment(.trailing)
+                    }
+                    Text("0 = keep source. Height is derived to preserve aspect ratio.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
 
             Section("Audio") {
-                Picker("Target", selection: $draft.audioTarget) {
+                Picker("Stereo / mono source", selection: $draft.audioTargetStereo) {
                     ForEach(AudioTarget.allCases) { Text($0.label).tag($0) }
                 }
+                Picker("Surround source", selection: $draft.audioTargetSurround) {
+                    ForEach(AudioTarget.allCases) { Text($0.label).tag($0) }
+                }
+                Text("Each source audio track uses the rule matching its channel count.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section("Subtitles") {

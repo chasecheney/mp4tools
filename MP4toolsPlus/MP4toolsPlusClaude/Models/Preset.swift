@@ -9,12 +9,31 @@
 
 import Foundation
 
-/// How to treat a stream: stream-copy (fast, lossless) or re-encode.
-enum StreamMode: String, Codable, CaseIterable, Identifiable {
-    case copy        // -c copy  (remux, no quality loss)
-    case reencode    // transcode to the preset's target codec
+/// How the video track should be encoded.
+enum VideoTarget: String, Codable, CaseIterable, Identifiable {
+    case passthru    // -c:v copy (no re-encode)
+    case h264        // H.264 / AVC
+    case h265        // H.265 / HEVC
     var id: String { rawValue }
-    var label: String { self == .copy ? "Copy (no re-encode)" : "Re-encode" }
+
+    var label: String {
+        switch self {
+        case .passthru: return "Passthru (no re-encode)"
+        case .h264:     return "H.264"
+        case .h265:     return "H.265 (HEVC)"
+        }
+    }
+
+    /// The ffmpeg encoder name. `hardware` selects Apple VideoToolbox
+    /// encoders (GPU/ASIC accelerated) instead of the software libx encoders.
+    /// Returns nil for passthru.
+    func encoder(hardware: Bool) -> String? {
+        switch self {
+        case .passthru: return nil
+        case .h264:     return hardware ? "h264_videotoolbox" : "libx264"
+        case .h265:     return hardware ? "hevc_videotoolbox" : "libx265"
+        }
+    }
 }
 
 /// Target audio codec when re-encoding / converting surround sound.
@@ -71,13 +90,26 @@ enum SubtitleMode: String, Codable, CaseIterable, Identifiable {
 struct Preset: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
-    var videoMode: StreamMode
-    /// Target H.264/H.265 codec when re-encoding (e.g. "libx264").
-    var videoCodec: String
-    /// Constant Rate Factor when re-encoding (lower = higher quality).
-    var crf: Int
-    var audioTarget: AudioTarget
+
+    // Video
+    var videoTarget: VideoTarget
+    /// Use Apple VideoToolbox hardware-accelerated encoders when re-encoding.
+    var useHardwareAcceleration: Bool
+    /// Target video bitrate in kbps. 0 = let the encoder choose (quality-based).
+    var videoBitrate: Int
+    /// Output width in pixels. Height is derived to preserve aspect ratio.
+    /// 0 = keep the source resolution.
+    var videoWidth: Int
+
+    // Audio — applied per source track by channel count.
+    /// Conversion for stereo / mono (≤ 2 channel) source tracks.
+    var audioTargetStereo: AudioTarget
+    /// Conversion for surround (> 2 channel) source tracks.
+    var audioTargetSurround: AudioTarget
+
+    // Subtitles
     var subtitleMode: SubtitleMode
+
     /// Preferred language codes for auto-selection (e.g. ["eng"]).
     var preferredLanguages: [String]
     /// Whether this preset can run fully automated (no track UI).
@@ -85,37 +117,65 @@ struct Preset: Identifiable, Codable, Hashable {
 
     init(id: UUID = UUID(),
          name: String,
-         videoMode: StreamMode = .copy,
-         videoCodec: String = "libx264",
-         crf: Int = 20,
-         audioTarget: AudioTarget = .copy,
+         videoTarget: VideoTarget = .passthru,
+         useHardwareAcceleration: Bool = false,
+         videoBitrate: Int = 0,
+         videoWidth: Int = 0,
+         audioTargetStereo: AudioTarget = .copy,
+         audioTargetSurround: AudioTarget = .copy,
          subtitleMode: SubtitleMode = .none,
          preferredLanguages: [String] = ["eng"],
          isOneStep: Bool = false) {
         self.id = id
         self.name = name
-        self.videoMode = videoMode
-        self.videoCodec = videoCodec
-        self.crf = crf
-        self.audioTarget = audioTarget
+        self.videoTarget = videoTarget
+        self.useHardwareAcceleration = useHardwareAcceleration
+        self.videoBitrate = videoBitrate
+        self.videoWidth = videoWidth
+        self.audioTargetStereo = audioTargetStereo
+        self.audioTargetSurround = audioTargetSurround
         self.subtitleMode = subtitleMode
         self.preferredLanguages = preferredLanguages
         self.isOneStep = isOneStep
     }
 
+    /// The conversion to apply to a source audio track with `channels`.
+    func audioTarget(forChannels channels: Int?) -> AudioTarget {
+        (channels ?? 2) > 2 ? audioTargetSurround : audioTargetStereo
+    }
+
+    /// Filename-safe form of the preset name, appended to outputs:
+    /// "Apple TV 4K" → "apple-tv-4k".
+    var fileSuffix: String {
+        let lowered = name.lowercased()
+        let dashed = lowered.replacingOccurrences(of: " ", with: "-")
+        let allowed = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyz0123456789-_")
+        let cleaned = String(dashed.unicodeScalars.filter { allowed.contains($0) })
+        // Collapse repeated dashes and trim.
+        let collapsed = cleaned.split(separator: "-").joined(separator: "-")
+        return collapsed.isEmpty ? "preset" : collapsed
+    }
+
     /// Factory defaults shipped with the app for common hardware.
     static let builtIns: [Preset] = [
-        Preset(name: "Remux to MP4 (fastest, lossless)",
-               videoMode: .copy, audioTarget: .copy,
+        Preset(name: "Remux to MP4",
+               videoTarget: .passthru,
+               audioTargetStereo: .copy, audioTargetSurround: .copy,
                subtitleMode: .mux, isOneStep: true),
         Preset(name: "Apple TV 4K",
-               videoMode: .copy, audioTarget: .ac3_51,
+               videoTarget: .passthru,
+               audioTargetStereo: .aac_stereo, audioTargetSurround: .ac3_51,
                subtitleMode: .mux, isOneStep: true),
-        Preset(name: "iPhone (H.264, stereo)",
-               videoMode: .reencode, videoCodec: "libx264", crf: 21,
-               audioTarget: .aac_stereo, subtitleMode: .burn, isOneStep: true),
-        Preset(name: "Surround → 5.1 AAC",
-               videoMode: .copy, audioTarget: .aac_51,
+        Preset(name: "iPhone",
+               videoTarget: .h264, useHardwareAcceleration: true,
+               videoBitrate: 4000, videoWidth: 1280,
+               audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_stereo,
+               subtitleMode: .burn, isOneStep: true),
+        Preset(name: "H.265 1080p",
+               videoTarget: .h265, useHardwareAcceleration: true,
+               videoBitrate: 6000, videoWidth: 1920,
+               audioTargetStereo: .aac_stereo, audioTargetSurround: .aac_51,
                subtitleMode: .mux, isOneStep: true)
     ]
 }

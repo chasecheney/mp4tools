@@ -49,23 +49,42 @@ enum FFmpegCommandBuilder {
             }
         }
 
-        // ---- Video codec ----
+        // ---- Video filters (scale to target width, optional burn-in) ----
+        var videoFilters: [String] = []
+        if preset.videoWidth > 0 {
+            // Scale to the requested width; "-2" derives an even height that
+            // preserves the source aspect ratio.
+            videoFilters.append("scale=\(preset.videoWidth):-2")
+        }
         if burning {
-            // Burn the first selected subtitle (internal index or external file).
-            let filter: String
             if externalSubtitle != nil {
-                filter = "subtitles='\(escapeFilterPath(externalSubtitle!.path))'"
+                videoFilters.append("subtitles='\(escapeFilterPath(externalSubtitle!.path))'")
             } else if let first = selectedSubs.first {
-                filter = "subtitles='\(escapeFilterPath(input.url.path))':si=\(first.streamIndex)"
-            } else {
-                filter = ""
+                videoFilters.append("subtitles='\(escapeFilterPath(input.url.path))':si=\(first.streamIndex)")
             }
-            args += ["-c:v", preset.videoCodec, "-crf", "\(preset.crf)"]
-            if !filter.isEmpty { args += ["-vf", filter] }
-        } else if preset.videoMode == .copy {
-            args += ["-c:v", "copy"]
+        }
+
+        // ---- Video codec ----
+        // Any filtering (scaling or burn-in) forces a re-encode even if the
+        // preset asked to pass the video through untouched.
+        let mustReencodeVideo = preset.videoTarget != .passthru || !videoFilters.isEmpty
+
+        if mustReencodeVideo {
+            let encoder = preset.videoTarget.encoder(hardware: preset.useHardwareAcceleration)
+                ?? (preset.useHardwareAcceleration ? "h264_videotoolbox" : "libx264")
+            args += ["-c:v", encoder]
+            if preset.videoBitrate > 0 {
+                args += ["-b:v", "\(preset.videoBitrate)k"]
+            } else if preset.useHardwareAcceleration {
+                args += ["-q:v", "55"]      // VideoToolbox quality (no CRF support)
+            } else {
+                args += ["-crf", "20"]      // libx264/libx265 quality fallback
+            }
+            if !videoFilters.isEmpty {
+                args += ["-vf", videoFilters.joined(separator: ",")]
+            }
         } else {
-            args += ["-c:v", preset.videoCodec, "-crf", "\(preset.crf)"]
+            args += ["-c:v", "copy"]
         }
 
         // ---- Audio codec / surround handling (per track) ----

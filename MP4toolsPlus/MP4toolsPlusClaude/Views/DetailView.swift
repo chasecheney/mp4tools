@@ -21,6 +21,7 @@ struct DetailView: View {
     @State private var selectedPresetID: Preset.ID?
     @State private var externalSubtitle: URL?
     @State private var showOperationSheet = false
+    @State private var editingPreset: Preset?
 
     private var selectedPreset: Preset? {
         presetStore.presets.first { $0.id == selectedPresetID }
@@ -50,6 +51,10 @@ struct DetailView: View {
             OperationSheet(file: file)
                 .environmentObject(jobQueue)
         }
+        .sheet(item: $editingPreset) { preset in
+            PresetEditorSheet(presetID: preset.id)
+                .environmentObject(presetStore)
+        }
     }
 
     // MARK: - Preset picker
@@ -63,14 +68,32 @@ struct DetailView: View {
                     Text(preset.name).tag(Optional(preset.id))
                 }
             }
-            .frame(maxWidth: 320)
+            .frame(maxWidth: 280)
+
+            // Create / edit / delete presets.
+            Menu {
+                Button("New Preset…") { createPreset() }
+                if let preset = selectedPreset {
+                    Button("Edit “\(preset.name)”…") { editingPreset = preset }
+                    Divider()
+                    Button("Delete “\(preset.name)”", role: .destructive) {
+                        deletePreset(preset)
+                    }
+                    .disabled(presetStore.presets.count <= 1)
+                }
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Create, edit, or delete presets")
 
             Button("Auto-select tracks") {
                 if let preset = selectedPreset {
                     library.applyAutoSelection(using: preset, to: file.id)
                 }
             }
-            .help("Choose tracks based on the preset's preferred languages")
+            .help("Select tracks and seed audio conversion from this preset")
 
             Spacer()
         }
@@ -117,7 +140,9 @@ struct DetailView: View {
 
     private func startConversion() {
         guard let preset = selectedPreset else { return }
-        let output = OutputNaming.suggest(for: file.url, suffix: "-converted", ext: "mp4")
+        // Append the preset name (lowercased, dashed) to the output file.
+        let output = OutputNaming.suggest(
+            for: file.url, suffix: "-" + preset.fileSuffix, ext: "mp4")
         jobQueue.enqueue(
             source: currentFile,
             operation: .convert(preset: preset),
@@ -125,6 +150,20 @@ struct DetailView: View {
             output: output,
             externalSubtitle: externalSubtitle
         )
+    }
+
+    // MARK: - Preset management
+
+    private func createPreset() {
+        let new = Preset(name: "New Preset")
+        presetStore.add(new)
+        selectedPresetID = new.id
+        editingPreset = new
+    }
+
+    private func deletePreset(_ preset: Preset) {
+        presetStore.delete(preset)
+        selectedPresetID = presetStore.presets.first?.id
     }
 
     /// The freshest copy of the file (track edits live in the library VM).
@@ -150,5 +189,36 @@ struct VideoPreview: View {
     var body: some View {
         VideoPlayer(player: AVPlayer(url: url))
             .background(Color.black)
+    }
+}
+
+/// Modal wrapper that hosts the shared `PresetForm` with a Done button,
+/// used by the preset dropdown's New/Edit actions.
+struct PresetEditorSheet: View {
+    let presetID: Preset.ID
+    @EnvironmentObject private var store: PresetStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Edit Preset").font(.headline)
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+            Divider()
+
+            if let preset = store.presets.first(where: { $0.id == presetID }) {
+                PresetForm(preset: preset)
+                    .id(preset.id)
+            } else {
+                Text("This preset no longer exists.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(width: 480, height: 560)
     }
 }

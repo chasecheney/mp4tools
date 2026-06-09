@@ -102,8 +102,11 @@ final class LibraryViewModel: ObservableObject {
             case .audio:
                 let lang = files[fIdx].tracks[i].language ?? ""
                 files[fIdx].tracks[i].isSelected = prefs.isEmpty || prefs.contains(lang)
-                // Seed the per-track conversion from the preset's audio target.
-                files[fIdx].tracks[i].audioConversion = preset.audioTarget
+                // Seed the per-track conversion from the preset's stereo or
+                // surround rule, chosen by the source track's channel count.
+                let channels = files[fIdx].tracks[i].channels
+                files[fIdx].tracks[i].audioConversion =
+                    preset.audioTarget(forChannels: channels)
             case .subtitle:
                 let lang = files[fIdx].tracks[i].language ?? ""
                 files[fIdx].tracks[i].isSelected =
