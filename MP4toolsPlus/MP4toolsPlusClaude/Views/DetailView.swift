@@ -9,6 +9,7 @@
 import SwiftUI
 import AppKit
 import AVKit
+import AVFoundation
 import UniformTypeIdentifiers
 
 struct DetailView: View {
@@ -183,12 +184,29 @@ struct DetailView: View {
     }
 }
 
-/// Lightweight AVKit preview so users can verify their selections.
-struct VideoPreview: View {
+/// AVKit preview so users can verify their selections.
+///
+/// We wrap AVKit's AppKit `AVPlayerView` via `NSViewRepresentable` instead of
+/// SwiftUI's `VideoPlayer`. SwiftUI's `VideoPlayer` crashed in optimized/release
+/// builds inside `_AVKit_SwiftUI` while instantiating its generic view metadata
+/// (`getSuperclassMetadata` → fatalError on file drop). `AVPlayerView` avoids
+/// that code path and is the native macOS player view.
+struct VideoPreview: NSViewRepresentable {
     let url: URL
-    var body: some View {
-        VideoPlayer(player: AVPlayer(url: url))
-            .background(Color.black)
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.controlsStyle = .inline
+        view.player = AVPlayer(url: url)
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        // Replace the player only when the source URL actually changes.
+        let currentURL = (nsView.player?.currentItem?.asset as? AVURLAsset)?.url
+        if currentURL != url {
+            nsView.player = AVPlayer(url: url)
+        }
     }
 }
 
