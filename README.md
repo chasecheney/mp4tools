@@ -4,7 +4,7 @@ A native macOS app (Swift + SwiftUI) for fast, mostly-lossless video processing 
 
 ## Download
 
-**[➜ Download the latest release](https://github.com/cheneycom/mp4tools/releases/latest)**
+**[➜ Download the latest release](https://github.com/chasecheney/mp4tools/releases/latest)**
 
 Grab the `.dmg` from the latest release, open it, and drag **MP4toolsPlus** to your Applications folder. The app is signed with an Apple Developer ID and notarized by Apple, so it opens with no security warnings. ffmpeg is bundled — nothing else to install.
 
