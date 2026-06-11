@@ -2,6 +2,20 @@
 
 A native macOS app (Swift + SwiftUI) for fast, mostly-lossless video processing built on **ffmpeg** / **ffprobe**. Drop a video in, pick what you want, and let it run — most jobs stream-copy tracks so they finish in minutes with no quality loss.
 
+## Download
+
+**[➜ Download the latest release](https://github.com/cheneycom/mp4tools/releases/latest)**
+
+Grab the `.dmg` from the latest release, open it, and drag **MP4toolsPlus** to your Applications folder. The app is signed with an Apple Developer ID and notarized by Apple, so it opens with no security warnings. ffmpeg is bundled — nothing else to install.
+
+**Requirements:** macOS 14 (Sonoma) or later, Apple Silicon.
+
+To verify your download, compare its checksum against `checksums.txt` on the release page:
+
+```sh
+shasum -a 256 -c checksums-1.0.txt
+```
+
 ## Features (copied from EmmGunn Software MP4tools)
 
 - **Drag-and-drop intake** for MKV, MP4, WEBM, OGM, AVI and more, probed with ffprobe.
