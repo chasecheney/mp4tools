@@ -28,7 +28,64 @@ struct TrackTableView: View {
                     section(title: title(for: kind), kind: kind, tracks: tracks)
                 }
             }
+
+            if !liveFile.externalSubtitles.isEmpty {
+                externalSubtitlesSection
+            }
         }
+    }
+
+    /// External subtitle files attached by the user, each with an include
+    /// toggle, an editable name, and a remove button.
+    private var externalSubtitlesSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("EXTERNAL SUBTITLES")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            ForEach(liveFile.externalSubtitles) { sub in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Toggle(isOn: Binding(
+                            get: { sub.isSelected },
+                            set: { library.setExternalSubtitle(sub.id, selected: $0, in: file.id) }
+                        )) {
+                            HStack {
+                                Image(systemName: "captions.bubble")
+                                    .foregroundStyle(.secondary).frame(width: 20)
+                                Text(sub.displayName).lineLimit(1).truncationMode(.middle)
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+
+                        Spacer()
+                        Button(role: .destructive) {
+                            library.removeExternalSubtitle(sub.id, in: file.id)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove this subtitle")
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag").font(.caption2).foregroundStyle(.tertiary)
+                        TextField("Subtitle name (e.g. English, Forced)",
+                                  text: Binding(
+                                    get: { sub.customTitle },
+                                    set: { library.setExternalSubtitleTitle(sub.id, title: $0, in: file.id) }))
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .frame(maxWidth: 320, alignment: .leading)
+                    }
+                    .padding(.leading, 24)
+                    .disabled(!sub.isSelected)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.secondary.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func title(for kind: TrackKind) -> String {

@@ -17,36 +17,38 @@ enum FFmpegCommandBuilder {
     ///   - tracks: the user's (possibly edited) track selection
     ///   - preset: encoding settings
     ///   - output: destination .mp4
-    ///   - externalSubtitle: optional .srt/.ass to mux or burn
+    ///   - externalSubtitles: external .srt/.ass/.vtt files to mux or burn
     static func convert(input: MediaFile,
                         tracks: [MediaTrack],
                         preset: Preset,
                         output: URL,
-                        externalSubtitle: URL? = nil) -> [String] {
+                        externalSubtitles: [ExternalSubtitle] = []) -> [String] {
         var args = ["-y", "-i", input.url.path]
-
-        // A second input for an external subtitle file, if present.
-        if let sub = externalSubtitle, preset.subtitleMode != .none {
-            args += ["-i", sub.path]
-        }
 
         let selectedVideo = tracks.filter { $0.kind == .video && $0.isSelected }
         let selectedAudio = tracks.filter { $0.kind == .audio && $0.isSelected }
         let selectedSubs  = tracks.filter { $0.kind == .subtitle && $0.isSelected }
+        // External subtitle files to include (ignored when subtitles are dropped).
+        let extSubs = preset.subtitleMode == .none
+            ? [] : externalSubtitles.filter { $0.isSelected }
 
-        // ---- Subtitle burn-in uses a filter and forces video re-encode ----
+        let muxing  = preset.subtitleMode == .mux
         let burning = preset.subtitleMode == .burn
-            && (!selectedSubs.isEmpty || externalSubtitle != nil)
+            && (!selectedSubs.isEmpty || !extSubs.isEmpty)
+
+        // Extra inputs: external subtitle files become inputs 1…N when muxing.
+        // (Burn-in reads the chosen file directly via the subtitles filter, so
+        // it needs no -i.)
+        if muxing {
+            for s in extSubs { args += ["-i", s.url.path] }
+        }
 
         // ---- Stream mapping ----
         for t in selectedVideo { args += ["-map", "0:\(t.streamIndex)"] }
         for t in selectedAudio { args += ["-map", "0:\(t.streamIndex)"] }
-        if preset.subtitleMode == .mux {
-            if externalSubtitle != nil {
-                args += ["-map", "1:0"]
-            } else {
-                for t in selectedSubs { args += ["-map", "0:\(t.streamIndex)"] }
-            }
+        if muxing {
+            for t in selectedSubs { args += ["-map", "0:\(t.streamIndex)"] }   // internal
+            for i in extSubs.indices { args += ["-map", "\(i + 1):0"] }        // external inputs
         }
 
         // ---- Video filters (scale to target width, optional burn-in) ----
@@ -57,10 +59,11 @@ enum FFmpegCommandBuilder {
             videoFilters.append("scale=\(preset.videoWidth):-2")
         }
         if burning {
-            if externalSubtitle != nil {
-                videoFilters.append("subtitles='\(escapeFilterPath(externalSubtitle!.path))'")
-            } else if let first = selectedSubs.first {
+            // Burn the first selected subtitle (internal preferred, else external).
+            if let first = selectedSubs.first {
                 videoFilters.append("subtitles='\(escapeFilterPath(input.url.path))':si=\(first.streamIndex)")
+            } else if let firstExt = extSubs.first {
+                videoFilters.append("subtitles='\(escapeFilterPath(firstExt.url.path))'")
             }
         }
 
@@ -127,17 +130,26 @@ enum FFmpegCommandBuilder {
         }
 
         // ---- Subtitle codec (soft mux into MP4 needs mov_text) ----
-        if preset.subtitleMode == .mux {
+        if muxing {
             args += ["-c:s", "mov_text"]
-            // Name each muxed internal subtitle track (handler_name persists in MP4).
-            if externalSubtitle == nil {
-                for (outIndex, t) in selectedSubs.enumerated() {
-                    let title = t.customTitle.trimmingCharacters(in: .whitespaces)
-                    if !title.isEmpty {
-                        args += ["-metadata:s:s:\(outIndex)", "handler_name=\(title)",
-                                 "-metadata:s:s:\(outIndex)", "title=\(title)"]
-                    }
+            // Name each muxed subtitle track (handler_name persists in MP4).
+            // Output subtitle order is internal tracks first, then externals.
+            var subOut = 0
+            for t in selectedSubs {
+                let title = t.customTitle.trimmingCharacters(in: .whitespaces)
+                if !title.isEmpty {
+                    args += ["-metadata:s:s:\(subOut)", "handler_name=\(title)",
+                             "-metadata:s:s:\(subOut)", "title=\(title)"]
                 }
+                subOut += 1
+            }
+            for s in extSubs {
+                let title = s.customTitle.trimmingCharacters(in: .whitespaces)
+                if !title.isEmpty {
+                    args += ["-metadata:s:s:\(subOut)", "handler_name=\(title)",
+                             "-metadata:s:s:\(subOut)", "title=\(title)"]
+                }
+                subOut += 1
             }
         }
 

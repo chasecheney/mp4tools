@@ -21,7 +21,6 @@ struct DetailView: View {
     @EnvironmentObject private var jobQueue: JobQueueViewModel
 
     @State private var selectedPresetID: Preset.ID?
-    @State private var externalSubtitle: URL?
     @State private var showOperationSheet = false
     @State private var editingPreset: Preset?
 
@@ -101,18 +100,13 @@ struct DetailView: View {
         }
     }
 
-    // MARK: - External subtitle
+    // MARK: - External subtitles
 
     private var subtitleRow: some View {
         HStack {
             Image(systemName: "captions.bubble")
-            if let sub = externalSubtitle {
-                Text(sub.lastPathComponent).lineLimit(1).truncationMode(.middle)
-                Button("Remove") { externalSubtitle = nil }
-            } else {
-                Button("Add External Subtitle…") { chooseSubtitle() }
-                    .help("Add an .srt or .ass file to mux or burn in")
-            }
+            Button("Add Subtitle File(s)…") { chooseSubtitles() }
+                .help("Add .srt/.ass files. They appear under Subtitles, where you can toggle and name each one.")
             Spacer()
         }
         .font(.callout)
@@ -150,7 +144,7 @@ struct DetailView: View {
             operation: .convert(preset: preset),
             selectedTracks: currentFile.tracks,
             output: output,
-            externalSubtitle: externalSubtitle
+            externalSubtitles: currentFile.externalSubtitles
         )
     }
 
@@ -173,15 +167,18 @@ struct DetailView: View {
         library.files.first { $0.id == file.id } ?? file
     }
 
-    private func chooseSubtitle() {
+    private func chooseSubtitles() {
         let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [
             UTType(filenameExtension: "srt") ?? .plainText,
             UTType(filenameExtension: "ass") ?? .plainText,
-            UTType(filenameExtension: "ssa") ?? .plainText
+            UTType(filenameExtension: "ssa") ?? .plainText,
+            UTType(filenameExtension: "vtt") ?? .plainText
         ]
-        if panel.runModal() == .OK { externalSubtitle = panel.url }
+        if panel.runModal() == .OK {
+            library.addExternalSubtitles(panel.urls, to: file.id)
+        }
     }
 }
 

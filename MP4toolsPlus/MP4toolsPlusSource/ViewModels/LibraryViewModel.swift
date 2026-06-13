@@ -100,6 +100,35 @@ final class LibraryViewModel: ObservableObject {
         files[fIdx].tracks[tIdx].customTitle = title
     }
 
+    // MARK: - External subtitles
+
+    /// Attach external subtitle files to a media file (skips duplicates).
+    func addExternalSubtitles(_ urls: [URL], to fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }) else { return }
+        for url in urls where !files[fIdx].externalSubtitles.contains(where: { $0.url == url }) {
+            files[fIdx].externalSubtitles.append(ExternalSubtitle(url: url))
+        }
+    }
+
+    func setExternalSubtitle(_ id: ExternalSubtitle.ID, selected: Bool, in fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }),
+              let sIdx = files[fIdx].externalSubtitles.firstIndex(where: { $0.id == id })
+        else { return }
+        files[fIdx].externalSubtitles[sIdx].isSelected = selected
+    }
+
+    func setExternalSubtitleTitle(_ id: ExternalSubtitle.ID, title: String, in fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }),
+              let sIdx = files[fIdx].externalSubtitles.firstIndex(where: { $0.id == id })
+        else { return }
+        files[fIdx].externalSubtitles[sIdx].customTitle = title
+    }
+
+    func removeExternalSubtitle(_ id: ExternalSubtitle.ID, in fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }) else { return }
+        files[fIdx].externalSubtitles.removeAll { $0.id == id }
+    }
+
     /// Apply a preset's preferred-language rule to auto-select audio/subtitle
     /// tracks for the currently selected file.
     func applyAutoSelection(using preset: Preset, to fileID: MediaFile.ID) {

@@ -23,7 +23,7 @@ actor FFmpegService {
                  operation: Operation,
                  selectedTracks: [MediaTrack],
                  output: URL,
-                 externalSubtitle: URL? = nil,
+                 externalSubtitles: [ExternalSubtitle] = [],
                  progress: @Sendable @escaping (Double) -> Void) async throws -> URL {
 
         let ffmpeg = try BinaryLocator.ffmpeg
@@ -38,7 +38,7 @@ actor FFmpegService {
             let dest = OutputNaming.uniqueURL(output)
             let args = FFmpegCommandBuilder.convert(
                 input: source, tracks: selectedTracks, preset: preset,
-                output: dest, externalSubtitle: externalSubtitle)
+                output: dest, externalSubtitles: externalSubtitles)
             try await runReporting(ffmpeg, args, totalDuration, progress)
             return dest
 
