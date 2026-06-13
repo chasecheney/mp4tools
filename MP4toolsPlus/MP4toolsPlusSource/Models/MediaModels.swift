@@ -108,6 +108,27 @@ struct MediaTrack: Identifiable, Codable, Hashable {
     }
 }
 
+/// An external subtitle file (e.g. an .srt/.ass downloaded separately) the user
+/// attaches to a media file. Shown alongside internal subtitle tracks.
+struct ExternalSubtitle: Identifiable, Codable, Hashable {
+    let id: UUID
+    let url: URL
+    /// Whether to include this subtitle in the conversion.
+    var isSelected: Bool
+    /// Track name written to the output (title / handler_name).
+    var customTitle: String
+
+    init(id: UUID = UUID(), url: URL, isSelected: Bool = true, customTitle: String? = nil) {
+        self.id = id
+        self.url = url
+        self.isSelected = isSelected
+        // Default the name to the file's base name (e.g. "Movie.en" → "Movie.en").
+        self.customTitle = customTitle ?? url.deletingPathExtension().lastPathComponent
+    }
+
+    var displayName: String { url.lastPathComponent }
+}
+
 /// A media file dropped into the app, with its probed tracks.
 struct MediaFile: Identifiable, Codable, Hashable {
     let id: UUID
@@ -117,16 +138,19 @@ struct MediaFile: Identifiable, Codable, Hashable {
     var sizeBytes: Int64?
     /// Container format reported by ffprobe (e.g. "matroska,webm").
     var formatName: String?
+    /// External subtitle files attached by the user.
+    var externalSubtitles: [ExternalSubtitle]
 
     init(id: UUID = UUID(), url: URL, tracks: [MediaTrack] = [],
          durationSeconds: Double? = nil, sizeBytes: Int64? = nil,
-         formatName: String? = nil) {
+         formatName: String? = nil, externalSubtitles: [ExternalSubtitle] = []) {
         self.id = id
         self.url = url
         self.tracks = tracks
         self.durationSeconds = durationSeconds
         self.sizeBytes = sizeBytes
         self.formatName = formatName
+        self.externalSubtitles = externalSubtitles
     }
 
     var displayName: String { url.lastPathComponent }

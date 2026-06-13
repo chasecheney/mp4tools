@@ -23,12 +23,12 @@ final class JobQueueViewModel: ObservableObject {
                  operation: Operation,
                  selectedTracks: [MediaTrack],
                  output: URL,
-                 externalSubtitle: URL? = nil) {
+                 externalSubtitles: [ExternalSubtitle] = []) {
         let job = Job(source: source, operation: operation, outputURL: output)
         jobs.append(job)
         startIfIdle(job: job,
                     selectedTracks: selectedTracks,
-                    externalSubtitle: externalSubtitle)
+                    externalSubtitles: externalSubtitles)
     }
 
     func cancelAll() {
@@ -40,13 +40,13 @@ final class JobQueueViewModel: ObservableObject {
 
     private func startIfIdle(job: Job,
                              selectedTracks: [MediaTrack],
-                             externalSubtitle: URL?) {
+                             externalSubtitles: [ExternalSubtitle]) {
         // Simple sequential queue: only launch when nothing is running.
         guard runningTask == nil else { return }
-        runNext(selectedTracks: selectedTracks, externalSubtitle: externalSubtitle)
+        runNext(selectedTracks: selectedTracks, externalSubtitles: externalSubtitles)
     }
 
-    private func runNext(selectedTracks: [MediaTrack], externalSubtitle: URL?) {
+    private func runNext(selectedTracks: [MediaTrack], externalSubtitles: [ExternalSubtitle]) {
         guard let job = jobs.first(where: {
             if case .queued = $0.status { return true } else { return false }
         }) else {
@@ -62,7 +62,7 @@ final class JobQueueViewModel: ObservableObject {
                     operation: job.operation,
                     selectedTracks: selectedTracks,
                     output: job.outputURL,
-                    externalSubtitle: externalSubtitle
+                    externalSubtitles: externalSubtitles
                 ) { fraction in
                     Task { @MainActor in
                         if case .running = job.status {
@@ -80,7 +80,7 @@ final class JobQueueViewModel: ObservableObject {
             }
             runningTask = nil
             // Drain any remaining queued jobs.
-            runNext(selectedTracks: selectedTracks, externalSubtitle: externalSubtitle)
+            runNext(selectedTracks: selectedTracks, externalSubtitles: externalSubtitles)
         }
     }
 }
