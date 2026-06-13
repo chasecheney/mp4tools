@@ -10,6 +10,17 @@ Grab the `.dmg` from the latest release, open it, and drag **MP4toolsPlus** to y
 
 **Requirements:** macOS 14 (Sonoma) or later, Apple Silicon.
 
+### Which edition?
+
+Two builds are published per release — pick one:
+
+| Edition | In-app video preview plays | Download size |
+| --- | --- | --- |
+| **Standard** (`MP4toolsPlus-x.y.dmg`) | MP4 / MOV (native macOS playback) | small |
+| **VLC** (`MP4toolsPlus-x.y-vlc.dmg`) | MP4, **MKV, AVI, WEBM** and more (bundles VLCKit) | much larger (~150–250 MB) |
+
+Both editions convert/split/join/extract every supported input format identically — the only difference is what the **preview window** can play back. Choose **VLC** if you want to preview MKV/AVI/WEBM before converting; otherwise the **Standard** build is smaller. The VLC edition includes VLCKit/libVLC under the LGPLv2.1 (see `THIRD-PARTY-LICENSES.md`).
+
 To verify your download, compare its checksum against `checksums.txt` on the release page:
 
 ```sh
