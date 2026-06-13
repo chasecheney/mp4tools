@@ -10,6 +10,7 @@ import SwiftUI
 import AppKit
 import AVKit
 import AVFoundation
+import Combine
 import UniformTypeIdentifiers
 
 struct DetailView: View {
@@ -301,8 +302,11 @@ final class VLCPlayerController: ObservableObject {
     @Published var durationText = "0:00"
 
     init() {
+        // scheduledTimer fires on the current (main) run loop; assume main-actor
+        // isolation so we can call the @MainActor `tick()` synchronously without
+        // spawning a Task that would capture `self` in concurrent code.
         timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
+            MainActor.assumeIsolated { self?.tick() }
         }
     }
 
@@ -330,7 +334,7 @@ final class VLCPlayerController: ObservableObject {
     private func tick() {
         isPlaying = player.isPlaying
         position = Double(player.position)
-        timeText = player.time.stringValue ?? "0:00"
+        timeText = player.time.stringValue
         if let length = player.media?.length.stringValue {
             durationText = length
         }

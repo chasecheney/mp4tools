@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D9792FA02FDDB53F008BBAAD /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = D9792F9F2FDDB53F008BBAAD /* VLCKitSPM */; };
 		D9D3D7282FD89A5F00DFFBAB /* JobQueueViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D3D7192FD89A5F00DFFBAB /* JobQueueViewModel.swift */; };
 		D9D3D7292FD89A5F00DFFBAB /* LibrarySidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D3D7212FD89A5F00DFFBAB /* LibrarySidebar.swift */; };
 		D9D3D72A2FD89A5F00DFFBAB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D3D7232FD89A5F00DFFBAB /* SettingsView.swift */; };
@@ -112,6 +113,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D9792FA02FDDB53F008BBAAD /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +253,7 @@
 			);
 			name = MP4toolsPlus;
 			packageProductDependencies = (
+				D9792F9F2FDDB53F008BBAAD /* VLCKitSPM */,
 			);
 			productName = MP4toolsPlus;
 			productReference = D9C4A45F2FD89967007061D4 /* MP4toolsPlus.app */;
@@ -334,6 +337,9 @@
 			);
 			mainGroup = D9C4A4562FD89967007061D4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D9792F9E2FDDB53F008BBAAD /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D9C4A4602FD89967007061D4 /* Products */;
 			projectDirPath = "";
@@ -809,6 +815,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D9792F9E2FDDB53F008BBAAD /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D9792F9F2FDDB53F008BBAAD /* VLCKitSPM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D9792F9E2FDDB53F008BBAAD /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D9C4A4572FD89967007061D4 /* Project object */;
 }
