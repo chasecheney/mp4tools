@@ -66,6 +66,14 @@ struct TrackTableView: View {
                     }
                     .toggleStyle(.checkbox)
 
+                    // Editable track name (audio & subtitle), written as title
+                    // metadata in the output.
+                    if kind == .audio || kind == .subtitle {
+                        titleField(for: track)
+                            .padding(.leading, 24)
+                            .disabled(!track.isSelected)
+                    }
+
                     // Per-track audio conversion choice.
                     if kind == .audio {
                         audioConversionPicker(for: track)
@@ -78,6 +86,23 @@ struct TrackTableView: View {
         .padding(10)
         .background(Color.secondary.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// An editable name field for an audio/subtitle track, saved as the
+    /// output track's title metadata.
+    private func titleField(for track: MediaTrack) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "tag")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            TextField("Track name (e.g. English, Director Commentary)",
+                      text: Binding(
+                        get: { track.customTitle },
+                        set: { library.setTrackTitle($0, for: track.id, in: file.id) }))
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .frame(maxWidth: 320, alignment: .leading)
+        }
     }
 
     /// A compact picker letting the user convert this audio track to

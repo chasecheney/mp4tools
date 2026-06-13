@@ -90,6 +90,16 @@ final class LibraryViewModel: ObservableObject {
         files[fIdx].tracks[tIdx].audioConversion = target
     }
 
+    /// Set a track's name (written to the output as title metadata).
+    func setTrackTitle(_ title: String,
+                       for trackID: MediaTrack.ID,
+                       in fileID: MediaFile.ID) {
+        guard let fIdx = files.firstIndex(where: { $0.id == fileID }),
+              let tIdx = files[fIdx].tracks.firstIndex(where: { $0.id == trackID })
+        else { return }
+        files[fIdx].tracks[tIdx].customTitle = title
+    }
+
     /// Apply a preset's preferred-language rule to auto-select audio/subtitle
     /// tracks for the currently selected file.
     func applyAutoSelection(using preset: Preset, to fileID: MediaFile.ID) {
