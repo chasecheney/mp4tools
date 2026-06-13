@@ -11,21 +11,29 @@ activates automatically.
 
 ## 1. Add the VLCKit package
 
+VideoLAN's own repo (`code.videolan.org/videolan/VLCKit.git`) is **not** a Swift
+Package (native SPM support is still an open issue), so adding that URL fails
+with *"contains invalid JSON."* Use a community SPM **wrapper** instead — its
+module is named **`VLCKitSPM`** (which is what the code's `#if canImport(...)`
+checks for).
+
 **Swift Package Manager (recommended):**
 
 1. Xcode ▸ **File ▸ Add Package Dependencies…**
-2. Enter the VLCKit Swift package URL:
-   `https://code.videolan.org/videolan/VLCKit.git`
-   (use the latest `4.0`-series release/branch that publishes a Swift package).
-3. Add the **VLCKit** product to the **MP4toolsPlus** target.
+2. Enter one of these wrapper URLs:
+   - `https://github.com/tylerjonesio/vlckit-spm` — wraps **VLCKit 3.x** (stable;
+     dependency rule *Up to Next Major* from `3.5.1`). Recommended for shipping.
+   - `https://github.com/virtualox/vlckit-spm` — wraps **VLCKit 4.0.0-alpha**
+     (newer, adds Picture-in-Picture, but alpha).
+3. Add the **VLCKitSPM** product to the **MP4toolsPlus** target.
 
-If SPM packaging isn't available for your VLCKit version, use CocoaPods instead
-(`pod 'VLCKit'`) or drag the prebuilt **VLCKit.xcframework** into the project and
-add it to *Frameworks, Libraries, and Embedded Content* (set to *Embed & Sign*).
+Alternatively use CocoaPods (`pod 'VLCKit'`) or drag the prebuilt
+**VLCKit.xcframework** in and set it to *Embed & Sign* — but then the module is
+`VLCKit`, so change `VLCKitSPM` → `VLCKit` in the two `#if canImport(...)` lines
+and the `import` in `DetailView.swift`.
 
-> Module name: the code uses `import VLCKit` (macOS). If your VLCKit distribution
-> exposes a different module name, update the `import` and the two
-> `#if canImport(...)` lines in `DetailView.swift` to match.
+> The Swift types (`VLCMediaPlayer`, `VLCMedia`, `VLCTime`) are the same
+> regardless of wrapper — only the module name differs.
 
 ## 2. Build & run
 

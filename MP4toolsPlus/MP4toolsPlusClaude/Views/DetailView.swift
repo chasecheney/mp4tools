@@ -194,7 +194,7 @@ struct VideoPreview: View {
     let url: URL
 
     var body: some View {
-        #if canImport(VLCKit)
+        #if canImport(VLCKitSPM)
         FullVideoPlayer(url: url)
         #else
         AVPlayerPreview(url: url)
@@ -226,8 +226,8 @@ struct AVPlayerPreview: NSViewRepresentable {
     }
 }
 
-#if canImport(VLCKit)
-import VLCKit
+#if canImport(VLCKitSPM)
+import VLCKitSPM
 
 /// Full video player backed by libVLC — plays MP4, MKV, AVI, WEBM and more,
 /// with a play/pause control and a seek scrubber.
