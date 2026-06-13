@@ -13,3 +13,6 @@ xcuserdata/
 # Bundled ffmpeg binaries (large; populate locally with scripts/fetch_ffmpeg.sh)
 MP4toolsPlus/MP4toolsPlus/Resources/ffmpeg
 MP4toolsPlus/MP4toolsPlus/Resources/ffprobe
+
+# Local Claude project instructions
+.claude/

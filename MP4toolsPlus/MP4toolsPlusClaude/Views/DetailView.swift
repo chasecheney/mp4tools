@@ -184,14 +184,31 @@ struct DetailView: View {
     }
 }
 
-/// AVKit preview so users can verify their selections.
+/// In-app video preview.
 ///
-/// We wrap AVKit's AppKit `AVPlayerView` via `NSViewRepresentable` instead of
-/// SwiftUI's `VideoPlayer`. SwiftUI's `VideoPlayer` crashed in optimized/release
-/// builds inside `_AVKit_SwiftUI` while instantiating its generic view metadata
-/// (`getSuperclassMetadata` → fatalError on file drop). `AVPlayerView` avoids
-/// that code path and is the native macOS player view.
-struct VideoPreview: NSViewRepresentable {
+/// When the VLCKit package is present, this uses a full libVLC-backed player
+/// that plays MP4, MKV, AVI, WEBM, etc. with seeking. Without VLCKit it falls
+/// back to AVKit's `AVPlayerView` (MP4/MOV/M4V only). The `#if canImport`
+/// guard keeps the project compiling before the package is added.
+struct VideoPreview: View {
+    let url: URL
+
+    var body: some View {
+        #if canImport(VLCKit)
+        FullVideoPlayer(url: url)
+        #else
+        AVPlayerPreview(url: url)
+        #endif
+    }
+}
+
+/// AVKit fallback player (native macOS `AVPlayerView`).
+///
+/// Wraps AppKit's `AVPlayerView` rather than SwiftUI's `VideoPlayer`, which
+/// crashed in optimized/release builds inside `_AVKit_SwiftUI` while
+/// instantiating its generic view metadata (`getSuperclassMetadata` →
+/// fatalError on file drop).
+struct AVPlayerPreview: NSViewRepresentable {
     let url: URL
 
     func makeNSView(context: Context) -> AVPlayerView {
@@ -202,13 +219,129 @@ struct VideoPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: AVPlayerView, context: Context) {
-        // Replace the player only when the source URL actually changes.
         let currentURL = (nsView.player?.currentItem?.asset as? AVURLAsset)?.url
         if currentURL != url {
             nsView.player = AVPlayer(url: url)
         }
     }
 }
+
+#if canImport(VLCKit)
+import VLCKit
+
+/// Full video player backed by libVLC — plays MP4, MKV, AVI, WEBM and more,
+/// with a play/pause control and a seek scrubber.
+struct FullVideoPlayer: View {
+    let url: URL
+    @StateObject private var controller = VLCPlayerController()
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            VLCDrawable(controller: controller)
+            transportBar
+        }
+        .background(Color.black)
+        .onAppear { controller.open(url) }
+        .onChange(of: url) { _, newURL in controller.open(newURL) }
+        .onDisappear { controller.stop() }
+    }
+
+    private var transportBar: some View {
+        HStack(spacing: 10) {
+            Button(action: controller.togglePlay) {
+                Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
+                    .frame(width: 18)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.space, modifiers: [])
+
+            Text(controller.timeText)
+                .font(.caption.monospacedDigit())
+
+            Slider(value: Binding(get: { controller.position },
+                                  set: { controller.seek(to: $0) }),
+                   in: 0...1)
+
+            Text(controller.durationText)
+                .font(.caption.monospacedDigit())
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.55))
+        .foregroundStyle(.white)
+    }
+}
+
+/// Hosts libVLC's video output in an `NSView` drawable.
+private struct VLCDrawable: NSViewRepresentable {
+    let controller: VLCPlayerController
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor
+        controller.attach(to: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+/// Wraps `VLCMediaPlayer` and publishes playback state for the SwiftUI UI.
+/// Playback position is polled on a timer to stay robust across VLCKit
+/// versions (whose delegate signatures have changed between releases).
+@MainActor
+final class VLCPlayerController: ObservableObject {
+    private let player = VLCMediaPlayer()
+    private var timer: Timer?
+
+    @Published var isPlaying = false
+    @Published var position: Double = 0          // 0...1
+    @Published var timeText = "0:00"
+    @Published var durationText = "0:00"
+
+    init() {
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+    }
+
+    func attach(to view: NSView) {
+        player.drawable = view
+    }
+
+    func open(_ url: URL) {
+        player.media = VLCMedia(url: url)
+        player.play()
+    }
+
+    func togglePlay() {
+        player.isPlaying ? player.pause() : player.play()
+    }
+
+    func seek(to fraction: Double) {
+        player.position = Float(fraction)
+    }
+
+    func stop() {
+        player.stop()
+    }
+
+    private func tick() {
+        isPlaying = player.isPlaying
+        position = Double(player.position)
+        timeText = player.time.stringValue ?? "0:00"
+        if let length = player.media?.length.stringValue {
+            durationText = length
+        }
+    }
+
+    deinit {
+        timer?.invalidate()
+        player.stop()
+    }
+}
+#endif
 
 /// Modal wrapper that hosts the shared `PresetForm` with a Done button,
 /// used by the preset dropdown's New/Edit actions.
