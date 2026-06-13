@@ -116,11 +116,29 @@ enum FFmpegCommandBuilder {
                 // fall back to AAC so the track plays.
                 args += ["-c:a:\(outIndex)", "aac", "-b:a:\(outIndex)", "256k"]
             }
+            // Per-track name. In MP4 the track name lives in `handler_name`
+            // (the mov muxer drops a plain `title` tag), so write both: title
+            // for tools/containers that read it, handler_name for MP4 players.
+            let title = t.customTitle.trimmingCharacters(in: .whitespaces)
+            if !title.isEmpty {
+                args += ["-metadata:s:a:\(outIndex)", "handler_name=\(title)",
+                         "-metadata:s:a:\(outIndex)", "title=\(title)"]
+            }
         }
 
         // ---- Subtitle codec (soft mux into MP4 needs mov_text) ----
         if preset.subtitleMode == .mux {
             args += ["-c:s", "mov_text"]
+            // Name each muxed internal subtitle track (handler_name persists in MP4).
+            if externalSubtitle == nil {
+                for (outIndex, t) in selectedSubs.enumerated() {
+                    let title = t.customTitle.trimmingCharacters(in: .whitespaces)
+                    if !title.isEmpty {
+                        args += ["-metadata:s:s:\(outIndex)", "handler_name=\(title)",
+                                 "-metadata:s:s:\(outIndex)", "title=\(title)"]
+                    }
+                }
+            }
         }
 
         // Faststart so MP4s stream/seek immediately.

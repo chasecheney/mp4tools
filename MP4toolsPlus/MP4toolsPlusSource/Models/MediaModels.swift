@@ -52,6 +52,10 @@ struct MediaTrack: Identifiable, Codable, Hashable {
     /// `.copy` leaves the stream untouched (no re-encode).
     var audioConversion: AudioTarget
 
+    /// Editable track name written to the output as title metadata. Seeded from
+    /// the probed `title`; user-editable for audio and subtitle tracks.
+    var customTitle: String
+
     init(id: UUID = UUID(),
          streamIndex: Int,
          kind: TrackKind,
@@ -65,7 +69,8 @@ struct MediaTrack: Identifiable, Codable, Hashable {
          channelLayout: String? = nil,
          sampleRate: Int? = nil,
          isSelected: Bool = true,
-         audioConversion: AudioTarget = .copy) {
+         audioConversion: AudioTarget = .copy,
+         customTitle: String? = nil) {
         self.id = id
         self.streamIndex = streamIndex
         self.kind = kind
@@ -80,6 +85,7 @@ struct MediaTrack: Identifiable, Codable, Hashable {
         self.sampleRate = sampleRate
         self.isSelected = isSelected
         self.audioConversion = audioConversion
+        self.customTitle = customTitle ?? title ?? ""
     }
 
     /// Human-friendly one-line summary shown in the UI.
